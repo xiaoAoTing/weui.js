@@ -288,8 +288,6 @@ const operTranslateY = (function () {
             const matrix = $.getStyle(elem, 'transform');
             const groups = reg.exec(matrix);
 
-            console.log(groups, 'groups', matrix, 'matrix');
-
             if (groups != null) {
                 return Number.parseFloat(groups[3]);
             } else {
