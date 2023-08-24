@@ -379,6 +379,8 @@ $.fn.wheel = function (options) {
 
     // 监听过渡结束事件
     $content.on('transitionend', function () {
+
+        if (!defaults.transiting) return ;
         defaults.transiting = false;
 
         let item, index;
@@ -392,6 +394,6 @@ $.fn.wheel = function (options) {
             return sum;
         }, 96);
 
-        defaults.onChange.call(this, item, index);
+        defaults.onChange(this, item, index);
     });
 };
