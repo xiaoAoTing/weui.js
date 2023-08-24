@@ -376,8 +376,8 @@ function picker() {
         });
     }
 
-
-
+    // 监听滚轮事件
+    // NOTE: 目前仅支持“单列选择器”
     function wheel(items, level) {
         $picker
             .find('.weui-half-screen-dialog__bd')
@@ -385,13 +385,9 @@ function picker() {
                 items,
                 onChange(item, index) {
                     lineTemp[level] = index;
-
                     result[level] = new Result(item);
-
                     defaults.onChange(item);
-                    // console.log(item, index, '过渡结束了当前停留的位置');
                 },
-
             });
     }
 
@@ -410,8 +406,10 @@ function picker() {
     } else {
         scroll(items, 0);
 
-        // NOTE: 目前 wheel 事件仅支持单列
-        wheel(items, 0);
+        // NOTE: 目前仅支持“单列选择器”
+        if (!defaults.DATE_PICKER) {
+            wheel(items, 0);
+        }
     }
 
     $picker
@@ -513,7 +511,8 @@ function datePicker(options) {
         start: nowDate.getFullYear() - 20,
         end: nowDate.getFullYear() + 20,
         defaultValue: [nowDate.getFullYear(), nowDate.getMonth() + 1, nowDate.getDate()],
-        cron: '* * *'
+        cron: '* * *',
+        DATE_PICKER: true, // 用于区分初始化的时候是“日期选择器”还是“单列选择器”。
     }, options);
 
     // 兼容原来的 start、end 传 Number 的用法

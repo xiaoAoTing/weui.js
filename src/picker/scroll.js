@@ -301,8 +301,6 @@ const operTranslateY = (function () {
 
             const matrix = $.getStyle(elem, 'transform');
 
-            console.log(y, 'set');
-
             elem.style.transform = matrix.replace(reg, `$1${y})`);
         }
     };
@@ -369,8 +367,6 @@ $.fn.wheel = function (options) {
         onChange: $.noop,                                   // onChange回调
         transiting: false,                                  // 是否处于滚动过渡中状态
     }, options);
-
-
 
     // 设置过渡
     setTransition($content, .3);
