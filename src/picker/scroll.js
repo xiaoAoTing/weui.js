@@ -86,6 +86,11 @@ const getMin = (offset, rowHeight, length) => {
     return -(rowHeight * (length - offset - 1));
 };
 
+/**
+ * 当前 Picker 组件的 translateY 值
+ */
+let curTranslateY;
+
 $.fn.scroll = function (options) {
     const $this = $(this).offAll();
     const $content = $this.find('.weui-picker__content');
@@ -94,11 +99,11 @@ $.fn.scroll = function (options) {
     const defaults = $.extend({
         items: [],                                  // 数据
         offset: 2,                                  // 列表初始化时的偏移量（列表初始化时，选项是聚焦在中间的，通过offset强制往上挪3项，以达到初始选项是为顶部的那项）
-        rowHeight: itemHeight,                              // 列表每一行的高度
+        rowHeight: itemHeight,                      // 列表每一行的高度
         onChange: $.noop,                           // onChange回调
         onScroll: $.noop,                           // onScroll回调
         temp: null,                                 // translate的缓存
-        bodyHeight: 5 * itemHeight                          // picker的高度，用于辅助点击滚动的计算
+        bodyHeight: 5 * itemHeight                  // picker的高度，用于辅助点击滚动的计算
     }, options);
     const items = defaults.items.map((item) => {
         return `<div role="option" title="按住上下可调" tabindex="0" class="weui-picker__item${item.disabled ? ' weui-picker__item_disabled' : ''}">${typeof item == 'object' ? item.label : item}</div>`;
@@ -110,7 +115,6 @@ $.fn.scroll = function (options) {
     let start;                                                  // 保存开始按下的位置
     let end;                                                    // 保存结束时的位置
     let startTime;                                              // 开始触摸的时间
-    let translate;                                              // 缓存 translate
     let lastIndex = null;                                       // 记录上一次触发onChange时的索引值
     const points = [];                                          // 记录移动点
 
@@ -119,37 +123,37 @@ $.fn.scroll = function (options) {
     if(defaults.temp !== null && defaults.temp < defaults.items.length) {
         const index = defaults.temp;
         defaults.onChange.call(this, defaults.items[index], index);
-        translate = (defaults.offset - index) * defaults.rowHeight;
+        curTranslateY = (defaults.offset - index) * defaults.rowHeight;
     }else{
         const index = getDefaultIndex(defaults.items);
         defaults.onChange.call(this, defaults.items[index], index);
-        translate = getDefaultTranslate(defaults.offset, defaults.rowHeight, defaults.items);
+        curTranslateY = getDefaultTranslate(defaults.offset, defaults.rowHeight, defaults.items);
     }
-    setTranslate($scrollable, translate);
+    setTranslate($scrollable, curTranslateY);
 
     function stop(diff) {
-        translate += diff;
+        curTranslateY += diff;
 
         // 移动到最接近的那一行
-        translate = Math.round(translate / defaults.rowHeight) * defaults.rowHeight;
+        curTranslateY = Math.round(curTranslateY / defaults.rowHeight) * defaults.rowHeight;
         const max = getMax(defaults.offset, defaults.rowHeight);
         const min = getMin(defaults.offset, defaults.rowHeight, defaults.items.length);
         // 不要超过最大值或者最小值
-        if (translate > max) {
-            translate = max;
+        if (curTranslateY > max) {
+            curTranslateY = max;
         }
-        if (translate < min) {
-            translate = min;
+        if (curTranslateY < min) {
+            curTranslateY = min;
         }
 
         // 如果是 disabled 的就跳过
-        let index = defaults.offset - translate / defaults.rowHeight;
+        let index = defaults.offset - curTranslateY / defaults.rowHeight;
         while (!!defaults.items[index] && defaults.items[index].disabled) {
             diff > 0 ? ++index : --index;
         }
-        translate = (defaults.offset - index) * defaults.rowHeight;
+        curTranslateY = (defaults.offset - index) * defaults.rowHeight;
         setTransition($scrollable, .3);
-        setTranslate($scrollable, translate);
+        setTranslate($scrollable, curTranslateY);
 
         // 触发选择事件
         if (index !== lastIndex) {
@@ -165,7 +169,7 @@ $.fn.scroll = function (options) {
     }
     function _move(pageY){
         end = pageY;
-        let newTranslate = translate + (end - start);
+        let newTranslate = curTranslateY + (end - start);
 
         setTransition($scrollable, 0);
         setTranslate($scrollable, newTranslate);
@@ -271,5 +275,130 @@ $.fn.scroll = function (options) {
         _end(evt.pageY);
         evt.stopPropagation();
         evt.preventDefault();
+    });
+};
+
+const operTranslateY = (function () {
+    const reg = /(.*\(([0-9],\s{1,1}){5})(([+-]?)[0-9\.]*)\)/gm;
+
+    return {
+        get(elem) {
+            reg.lastIndex = 0;
+
+            const matrix = $.getStyle(elem, 'transform');
+            const groups = reg.exec(matrix);
+
+            console.log(groups, 'groups', matrix, 'matrix');
+
+            if (groups != null) {
+                return Number.parseFloat(groups[3]);
+            } else {
+                return 0;
+            }
+        },
+        set(elem, y) {
+            reg.lastIndex = 0;
+
+            const matrix = $.getStyle(elem, 'transform');
+
+            console.log(y, 'set');
+
+            elem.style.transform = matrix.replace(reg, `$1${y})`);
+        }
+    };
+})();
+
+function wheelHandle({ e, itemHeight: rowHeight, $content, defaults }) {
+    let translateY = curTranslateY || operTranslateY.get($content[0]);       // 当前 Y 轴偏移量
+
+    if (Math.abs(e.deltaY) > 1) {
+        let directionEnum = ['down', 'up'];
+        let direction = e.deltaY > 0 ? directionEnum[0] : directionEnum[1]; // 当前滚动的方向
+
+        const max = getMax(defaults.offset, defaults.rowHeight);
+        const min = getMin(defaults.offset, defaults.rowHeight, defaults.items.length);
+
+        if (direction === directionEnum[0]) {
+            // 向下滚动
+            translateY -= rowHeight;
+        }
+        else if (direction === directionEnum[1]) {
+            // 向上滚动
+            translateY += rowHeight;
+        }
+
+        // 取最近的一行
+        translateY = Math.round(translateY / defaults.rowHeight) * defaults.rowHeight;
+
+        // 不要超过最大值或者最小值
+        if (translateY > max) {
+            translateY = max;
+        }
+        if (translateY < min) {
+            translateY = min;
+        }
+
+        // 如果是 disabled 的就跳过
+        let index = defaults.offset - translateY / defaults.rowHeight;
+        while (!!defaults.items[index] && defaults.items[index].disabled) {
+            direction === directionEnum[0] ? ++index : --index;
+        }
+        translateY = (defaults.offset - index) * defaults.rowHeight;
+
+        curTranslateY = translateY;
+        operTranslateY.set($content[0], translateY);
+
+
+    }
+}
+
+// 处理滚轮事件
+// 注意：wheel 事件跟 scroll 事件是有区别的
+// 详情：https://developer.mozilla.org/zh-CN/docs/Web/API/WheelEvent
+$.fn.wheel = function (options) {
+    const $this = this;
+    const $content = $this.find('.weui-picker__content');
+    const rowHeight = Math.round($content.find('.weui-picker__item')[0].clientHeight);
+
+    const defaults = $.extend({
+        items: [],                                          // 选项数据
+        offset: 2,                                          // 列表初始化时的偏移量（列表初始化时，选项是聚焦在中间的，通过offset强制往上挪3项，以达到初始选项是为顶部的那项）
+        // onScroll: $.noop,                                   // onScroll回调
+        rowHeight: rowHeight,                              // 列表每一行的高度
+        bodyHeight: 5 * rowHeight,                         // picker的高度，用于辅助点击滚动的计算
+        onChange: $.noop,                                   // onChange回调
+        onWheel: $.noop,                                    // 滚轮事件触发并且元素过渡效果结束后触发
+        transiting: false,                                  // 是否处于滚动过渡中状态
+    }, options);
+
+
+
+    // 设置过渡
+    setTransition($content, .3);
+    // 设置 Y
+    operTranslateY.set($content[0], curTranslateY);
+
+    // 监听滚轮事件
+    $this.on('wheel', function (e) {
+        defaults.transiting = true;
+        wheelHandle({ e, itemHeight: rowHeight, defaults, $this, $content });
+    });
+
+    // 监听过渡结束事件
+    $content.on('transitionend', function () {
+        defaults.transiting = false;
+
+        let item, index;
+
+        defaults.items.reduce((sum, it, idx) => {
+            if (sum === curTranslateY) {
+                item = it;
+                index = idx;
+            }
+            sum -= defaults.rowHeight;
+            return sum;
+        }, 96);
+
+        defaults.onWheel.call(this, item, index);
     });
 };

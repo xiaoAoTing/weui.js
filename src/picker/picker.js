@@ -377,6 +377,18 @@ function picker() {
     }
 
 
+
+    function wheel(items) {
+        $picker
+            .find('.weui-half-screen-dialog__bd')
+            .wheel({
+                items,
+                onWheel(item, index) {
+                    // console.log(item, index, '过渡结束了当前停留的位置');
+                }
+            });
+    }
+
     let _depth = depth;
     while (_depth--) {
         groups += groupTpl;
@@ -391,6 +403,9 @@ function picker() {
         });
     } else {
         scroll(items, 0);
+
+        // NOTE: 目前 wheel 事件仅支持单列
+        wheel(items);
     }
 
     $picker
