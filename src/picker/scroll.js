@@ -367,7 +367,6 @@ $.fn.wheel = function (options) {
         rowHeight: rowHeight,                              // 列表每一行的高度
         bodyHeight: 5 * rowHeight,                         // picker的高度，用于辅助点击滚动的计算
         onChange: $.noop,                                   // onChange回调
-        onWheel: $.noop,                                    // 滚轮事件触发并且元素过渡效果结束后触发
         transiting: false,                                  // 是否处于滚动过渡中状态
     }, options);
 
@@ -399,6 +398,6 @@ $.fn.wheel = function (options) {
             return sum;
         }, 96);
 
-        defaults.onWheel.call(this, item, index);
+        defaults.onChange.call(this, item, index);
     });
 };

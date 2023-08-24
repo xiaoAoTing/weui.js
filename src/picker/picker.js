@@ -378,14 +378,20 @@ function picker() {
 
 
 
-    function wheel(items) {
+    function wheel(items, level) {
         $picker
             .find('.weui-half-screen-dialog__bd')
             .wheel({
                 items,
-                onWheel(item, index) {
+                onChange(item, index) {
+                    lineTemp[level] = index;
+
+                    result[level] = new Result(item);
+
+                    defaults.onChange(item);
                     // console.log(item, index, '过渡结束了当前停留的位置');
-                }
+                },
+
             });
     }
 
@@ -405,7 +411,7 @@ function picker() {
         scroll(items, 0);
 
         // NOTE: 目前 wheel 事件仅支持单列
-        wheel(items);
+        wheel(items, 0);
     }
 
     $picker
